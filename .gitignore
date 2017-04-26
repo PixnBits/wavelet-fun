@@ -1,0 +1,14 @@
+# node + npm
+node_modules
+npm-debug.log*
+
+# analysis
+/test-results
+
+# builds
+/dist
+/stats.json
+
+# Logs
+logs
+*.log
