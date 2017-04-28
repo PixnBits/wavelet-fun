@@ -19,21 +19,10 @@ function verticalMidpoint(pe, pf, pg) {
   return [hx, hy];
 }
 
-// https://en.wikipedia.org/wiki/Distance_from_a_point_to_a_line#Line_defined_by_two_points
-function distanceFromLine(pa, pb, deciding) {
-  const x1 = pa[0];
-  const y1 = pa[1];
-
-  const x2 = pb[0];
-  const y2 = pb[1];
-
-  const x0 = deciding[0];
-  const y0 = deciding[1];
-
-  return (
-    // airbnb say "don't mix + and -" :S
-    Math.abs((((y2 - y1) * x0) + (x2 * y1)) - ((x2 - x1) * y0) - (y2 * x1)) /
-    Math.sqrt(((y2 - y1) ** 2) + ((x2 - x1) ** 2))
+function distance(a, b) {
+  return Math.sqrt(
+    ((b[0] - a[0]) ** 2) +
+    ((b[1] - a[1]) ** 2)
   );
 }
 
@@ -85,6 +74,7 @@ class Compression extends Component {
 
     decide.forEach((deciding, ind) => {
       let shouldKeep = true;
+      let mid;
 
       const pa = points[ind];
       const pb = points[ind + 1];
@@ -92,8 +82,9 @@ class Compression extends Component {
       if (!pb) {
         shouldKeep = true;
       } else {
-        const dist = distanceFromLine(pa, pb, deciding);
-        if (dist < threshold) {
+        mid = verticalMidpoint(pa, pb, deciding);
+        // distance should be just the difference of their y-values
+        if (distance(deciding, mid) < threshold) {
           shouldKeep = false;
         }
       }
@@ -103,8 +94,9 @@ class Compression extends Component {
       } else {
         discard.push(deciding);
       }
-      if (pb) {
-        lines.push([deciding, verticalMidpoint(pa, pb, deciding), shouldKeep]);
+
+      if (mid) {
+        lines.push([deciding, mid, shouldKeep]);
       }
     });
 
