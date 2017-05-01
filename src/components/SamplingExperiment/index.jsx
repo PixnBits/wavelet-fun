@@ -33,6 +33,7 @@ class SamplingExperiment extends Component {
       // const {a,b,c,d,e,f,g,h,i} = {a:135, b:5, c:24, d:40, e:20, f:23, g:48, h:54, i:24};
       // const {a,b,c,d,e,f,g,h,i} = {a:135, b:18, c:20, d:11, e:30, f:41, g:32, h:43, i:43};
       // const {a,b,c,d,e,f,g,h,i} = {a:dims.height/2, b:35, c:45, d:0, e:20, f:0, g:48, h:0, i:24};
+      // const {a,b,c,d,e,f,g,h,i} = {a:135,b:5,c:20,d:44,e:20,f:23,g:44,h:58,i:16};
 
       console.log({ a, b, c, d, e, f, g, h, i });
       const wave = x => (a) +

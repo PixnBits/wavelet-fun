@@ -1,5 +1,7 @@
 import React, { Component, PropTypes } from 'react';
 
+import UnCompressed from './UnCompressed';
+
 function verticalMidpoint(pe, pf, pg) {
   const ex = pe[0];
   const ey = pe[1];
@@ -42,10 +44,10 @@ class Compression extends Component {
   initialize() {
     const { width, func, sampleCount } = this.props;
     const interval = (width - 1) / sampleCount;
-    const points = [];
+    const samples = [];
 
     for (let i = 1; i < width; i += interval) {
-      points.push([i, func(i)]);
+      samples.push([i, func(i)]);
     }
 
     if (this.state.intervalHandle) {
@@ -54,20 +56,22 @@ class Compression extends Component {
 
     const intervalHandle = setInterval(() => this.iterate(), 2e3);
     this.setState({
-      points,
+      samples,
       intervalHandle,
       keep: null,
       discard: null,
       kept: null,
       lines: null,
       textInfo: null,
+
+      keepSets: null,
     });
   }
 
   iterate() {
     const threshold = this.props.threshold;
-    const points = this.state.points.filter((p, i) => i % 2 === 0);
-    const decide = this.state.points.filter((p, i) => i % 2 === 1);
+    const samples = this.state.samples.filter((p, i) => i % 2 === 0);
+    const decide = this.state.samples.filter((p, i) => i % 2 === 1);
     const keep = [];
     const discard = [];
     const lines = [];
@@ -76,8 +80,8 @@ class Compression extends Component {
       let shouldKeep = true;
       let mid;
 
-      const pa = points[ind];
-      const pb = points[ind + 1];
+      const pa = samples[ind];
+      const pb = samples[ind + 1];
 
       if (!pb) {
         shouldKeep = true;
@@ -100,31 +104,42 @@ class Compression extends Component {
       }
     });
 
+    const keepSets = (this.state.keepSets || []).concat([]);
+    keepSets.unshift(keep);
+
     this.setState({
-      points,
+      samples,
       keep,
       discard,
-      kept: (this.state.kept || []).concat(keep).sort((a, b) => b[0] - a[0]),
+      kept: (this.state.kept || []).concat(keep),
       lines,
+
+      keepSets,
     });
 
-    if (points.length <= 2) {
+    if (samples.length <= 2) {
       clearInterval(this.state.intervalHandle);
       setTimeout(() => this.afterIterating(), 2e3);
     }
   }
 
   afterIterating() {
-    const points = this.state.points.concat(this.state.kept).sort((a, b) => b[0] - a[0]);
-    const textInfo = `${Math.round(100 * (1 - (points.length / this.props.sampleCount)))}% (${points.length}/${this.props.sampleCount}, ${this.props.threshold})`;
+    const kept = this.state.kept.concat(this.state.samples);
+    const samples = null;// this.state.samples.concat(this.state.kept).sort((a, b) => b[0] - a[0]);
+    const textInfo = `${Math.round(100 * (1 - (kept.length / this.props.sampleCount)))}% (${kept.length}/${this.props.sampleCount}, ${this.props.threshold})`;
+
+    const keepSets = (this.state.keepSets || []).concat([]);
+    keepSets.unshift(this.state.samples);
 
     this.setState({
-      points,
+      samples,
+      kept,
       keep: null,
       discard: null,
-      kept: null,
       lines: null,
       textInfo,
+
+      keepSets,
     });
 
     setTimeout(() => this.initialize(), 6e3);
@@ -132,28 +147,59 @@ class Compression extends Component {
 
   render() {
     const { height } = this.props;
+    const {
+      samples,
+      kept,
+      textInfo,
+      lines,
+      keep,
+      discard,
 
-    if (!this.state.points) {
-      return null;
-    }
+      keepSets,
+    } = this.state;
 
     return (
       <g>
+        {samples ? (
+            null
+          ) : (
+            <g>
+              <UnCompressed compressed={keepSets} height={height} />
+              {kept && kept
+                .sort((a, b) => a[0] - b[0])
+                .map((pa, i) => {
+                  const pb = kept[i + 1];
+                  if (!pb) {
+                    return null;
+                  }
+                  return (
+                    <polyline
+                      key={`kept-line-${pa[0]}`}
+                      points={`${pa[0]}, ${height - pa[1]} ${pb[0]}, ${height - pb[1]}`}
+                      stroke="orange"
+                      fill="none"
+                    />
+                  );
+                })
+              }
+            </g>
+          )
+        }
         {
-          this.state.textInfo ? (
+          textInfo ? (
             <text
               x="0"
               y="12"
-              fontFamily="Ariel"
+              fontFamily="Arial"
               fontSize="12"
             >
-              {this.state.textInfo}
+              {textInfo}
             </text>
           ) : (
             null
           )
         }
-        {this.state.lines && this.state.lines.map(l => (
+        {lines && lines.map(l => (
           <polyline
             key={`deciding-line-${l[0][0]}`}
             points={`${l[0][0]}, ${height - l[0][1]} ${l[1][0]}, ${height - l[1][1]}`}
@@ -162,7 +208,7 @@ class Compression extends Component {
           />
         ))}
 
-        {this.state.kept && this.state.kept.map(p => (
+        {kept && kept.map(p => (
           <circle
             key={`kept-${p[0]}`}
             cx={p[0]}
@@ -173,7 +219,7 @@ class Compression extends Component {
             fill="orange"
           />
         ))}
-        {this.state.kept && this.state.kept.map(p => (
+        {kept && kept.map(p => (
           <circle
             key={`kept-bar-${p[0]}`}
             cx={p[0]}
@@ -185,7 +231,7 @@ class Compression extends Component {
           />
         ))}
 
-        {this.state.discard && this.state.discard.map(p => (
+        {discard && discard.map(p => (
           <circle
             key={`discard-${p[0]}`}
             cx={p[0]}
@@ -196,7 +242,7 @@ class Compression extends Component {
             fill="yellow"
           />
         ))}
-        {this.state.discard && this.state.discard.map(p => (
+        {discard && discard.map(p => (
           <circle
             key={`discard-bar-${p[0]}`}
             cx={p[0]}
@@ -208,7 +254,7 @@ class Compression extends Component {
           />
         ))}
 
-        {this.state.keep && this.state.keep.map(p => (
+        {keep && keep.map(p => (
           <circle
             key={`keep-${p[0]}`}
             cx={p[0]}
@@ -219,7 +265,7 @@ class Compression extends Component {
             fill="red"
           />
         ))}
-        {this.state.keep && this.state.keep.map(p => (
+        {keep && keep.map(p => (
           <circle
             key={`keep-bar-${p[0]}`}
             cx={p[0]}
@@ -231,9 +277,9 @@ class Compression extends Component {
           />
         ))}
 
-        {this.state.points.map(p => (
+        {samples && samples.map(p => (
           <circle
-            key={`points-${p[0]}`}
+            key={`samples-${p[0]}`}
             cx={p[0]}
             cy={height - p[1]}
             title={`(${p[0]}, ${p[1]})`}
@@ -242,7 +288,7 @@ class Compression extends Component {
             fill="blue"
           />
         ))}
-        {this.state.points.map((p1, ind, arr) => {
+        {samples && samples.map((p1, ind, arr) => {
           const p2 = arr[ind + 1];
           if (!p2) {
             return null;
@@ -250,7 +296,7 @@ class Compression extends Component {
 
           return (
             <polyline
-              key={`point-line-${p1[0]}`}
+              key={`samples-line-${p1[0]}`}
               points={`${p1[0]}, ${height - p1[1]} ${p2[0]}, ${height - p2[1]}`}
               stroke="blue"
               fill="none"
